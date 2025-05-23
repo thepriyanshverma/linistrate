@@ -1739,3 +1739,10 @@
 00:00:11.190835 OHCI: Software reset
 00:00:11.191062 OHCI: USB Operational
 00:00:29.216389 NAT: Link up
+02:07:14.966971 Pausing VM execution, reason 'HostSuspend'
+02:07:14.981858 Changing the VM state from 'RUNNING' to 'SUSPENDING'
+02:07:15.149491 AIOMgr: Endpoint for file 'D:\PycharmProjects\linistrate\VirtualBox VMs\debian-server\debian-server.vdi' (flags 000c0781) created successfully
+02:07:15.171188 PDMR3Suspend: 188 841 849 ns run time
+02:07:15.171209 Changing the VM state from 'SUSPENDING' to 'SUSPENDED'
+02:07:15.171221 Console: Machine state changed to 'Paused'
+22:53:32.588448 NAT: DNS settings changed, triggering update
