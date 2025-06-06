@@ -1,0 +1,339 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Play, Clock, Terminal } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface Asset {
+  id: string;
+  name: string;
+  ip: string;
+  group: string;
+  groupColor?: string;
+  status: 'online' | 'offline' | 'maintenance';
+}
+
+const Commands = () => {
+  const [command, setCommand] = useState('');
+  const [selectedScript, setSelectedScript] = useState('');
+  const [selectedAsset, setSelectedAsset] = useState('');
+  const [output, setOutput] = useState('');
+  const [scheduleDate, setScheduleDate] = useState<Date>();
+  const [scheduleEmail, setScheduleEmail] = useState('');
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+    const fetchAssets = async () => {
+      const token = localStorage.getItem('linistrate_token');
+      if (!token) {
+        console.error("No token found");
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:8000/asset/v1/get-assets', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+        console.log("Asset response:", data);
+
+        if (Array.isArray(data)) {
+          const mapped = data.map((item: any) => ({
+            id: item.asset_id.toString(),
+            name: item.name,             // corrected keys here
+            ip: item.ip,
+            group: `Group ${item.group_id}`,
+            status: 'online',
+            groupColor: '#6b7280',
+          }));
+          setAssets(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to fetch assets:', error);
+      }
+    };
+
+    fetchAssets();
+  }, []);
+
+  const predefinedScripts = [
+    { value: 'system_info', label: 'System Information', description: 'Get system details and hardware info' },
+    { value: 'disk_usage', label: 'Disk Usage', description: 'Check disk space usage' },
+    { value: 'memory_usage', label: 'Memory Usage', description: 'Check memory consumption' },
+    { value: 'process_list', label: 'Running Processes', description: 'List all running processes' },
+    { value: 'network_status', label: 'Network Status', description: 'Check network interfaces and connections' },
+    { value: 'service_status', label: 'Service Status', description: 'Check status of system services' },
+    { value: 'log_check', label: 'Log Analysis', description: 'Analyze system logs for errors' },
+    { value: 'security_scan', label: 'Security Scan', description: 'Basic security audit' }
+  ];
+
+  const handleExecute = async () => {
+    if (!selectedAsset) {
+      return setOutput('Error: Please select a target asset.');
+    }
+
+    const token = localStorage.getItem('linistrate_token');
+    if (!token) {
+      return setOutput('Error: Authorization token missing.');
+    }
+
+    try {
+      // Fetch assets fresh (if needed), or rely on state assets:
+      // Here you can skip fetching assets again unless you want to refresh
+
+      // Prepare command
+      let executionCommand = '';
+      if (selectedScript) {
+        const script = predefinedScripts.find(s => s.value === selectedScript);
+        executionCommand = script ? script.value : selectedScript;
+      } else if (command) {
+        executionCommand = command;
+      } else {
+        return setOutput('Error: Enter a command or select a script.');
+      }
+
+      const asset = assets.find(a => a.id === selectedAsset);
+      if (!asset) return setOutput('Error: Invalid asset selection.');
+
+      setOutput(`Executing "${executionCommand}" on ${asset.name} (${asset.ip})...\nPlease wait...`);
+
+      const res = await fetch('http://localhost:8000/command/v1/command-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ip: asset.ip,
+          command: executionCommand,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Execution failed');
+
+      if (data.error) {
+        setOutput(`Error: ${data.error}`);
+      } else {
+        setOutput(Array.isArray(data.output) ? data.output.join('\n') : data.output);
+      }
+    } catch (error: any) {
+      console.error(error);
+      setOutput(`Execution failed: ${error.message}`);
+    }
+  };
+
+  const handleSchedule = () => {
+    if (!selectedAsset || !scheduleDate || !scheduleEmail) {
+      setOutput('Error: Please select asset, date, and email for scheduling.');
+      return;
+    }
+
+    if (!selectedScript && !command) {
+      setOutput('Error: Please select a script or enter a command to schedule.');
+      return;
+    }
+
+    const asset = assets.find(a => a.id === selectedAsset);
+    let scheduledCommand = '';
+    if (selectedScript) {
+      const script = predefinedScripts.find(s => s.value === selectedScript);
+      scheduledCommand = script ? script.label : selectedScript;
+    } else {
+      scheduledCommand = command;
+    }
+
+    setOutput(`Scheduled "${scheduledCommand}" on ${asset?.name} for ${format(scheduleDate, 'PPP')}.\nResults will be sent to: ${scheduleEmail}\n\nSchedule ID: SCH-${Date.now()}`);
+    setScheduleDate(undefined);
+    setScheduleEmail('');
+    setIsScheduling(false);
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-3xl font-bold">Command Execution</h1>
+        <p className="text-muted-foreground">Execute commands and scripts on your Linux assets</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Command Input Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Terminal className="h-5 w-5" />
+              <span>Command Center</span>
+            </CardTitle>
+            <CardDescription>
+              Execute custom commands or predefined scripts
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Target Asset Selection */}
+            <div className="space-y-2">
+              <Label>Target Asset *</Label>
+              <Select value={selectedAsset} onValueChange={setSelectedAsset}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select target asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">No assets found</div>
+                  ) : (
+                    assets.map(asset => (
+                      <SelectItem key={asset.id} value={asset.id}>
+                        {asset.name} ({asset.ip}) - {asset.group}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Script Selection */}
+            <div className="space-y-2">
+              <Label>Predefined Script</Label>
+              <Select value={selectedScript} onValueChange={setSelectedScript}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a predefined script (recommended)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {predefinedScripts.map(script => (
+                    <SelectItem key={script.value} value={script.value}>
+                      <div>
+                        <div className="font-medium">{script.label}</div>
+                        <div className="text-xs text-muted-foreground">{script.description}</div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="text-center text-sm text-muted-foreground">OR</div>
+
+            {/* Custom Command Input */}
+            <div className="space-y-2">
+              <Label htmlFor="command">Custom Command</Label>
+              <Input
+                id="command"
+                placeholder="ls -la"
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                disabled={!!selectedScript}
+              />
+              <p className="text-xs text-muted-foreground">
+                Custom commands are disabled when a script is selected
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-2">
+              <Button 
+                onClick={handleExecute} 
+                disabled={!selectedAsset || (!command && !selectedScript)}
+                className="flex-1"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Execute Now
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsScheduling(!isScheduling)}
+                disabled={!selectedAsset || (!command && !selectedScript)}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Schedule
+              </Button>
+            </div>
+
+            {/* Scheduling Section */}
+            {isScheduling && (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                <h3 className="font-medium">Schedule Execution</h3>
+                
+                <div className="space-y-2">
+                  <Label>Execution Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !scheduleDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {scheduleDate ? format(scheduleDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={scheduleDate}
+                        onSelect={setScheduleDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="scheduleEmail">Email for Results</Label>
+                  <Input
+                    id="scheduleEmail"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={scheduleEmail}
+                    onChange={(e) => setScheduleEmail(e.target.value)}
+                  />
+                </div>
+
+                <Button 
+                  onClick={handleSchedule}
+                  disabled={!scheduleDate || !scheduleEmail}
+                  className="w-full"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Schedule Execution
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Output Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Command Output</CardTitle>
+            <CardDescription>
+              Real-time output from command execution
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+              placeholder="Command output will appear here..."
+              className="min-h-[300px] font-mono text-sm bg-black text-green-400 border-gray-600"
+              readOnly
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default Commands;

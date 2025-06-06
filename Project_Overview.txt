@@ -1,0 +1,1 @@
+A web-based tool that allows authenticated users to execute predefined system and network commands securely on a remote Linux server (Ubuntu VM) from FastAPI hosted on Windows.
