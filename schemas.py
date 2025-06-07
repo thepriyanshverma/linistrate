@@ -13,7 +13,8 @@ class UserLogin(BaseModel):
     password: str
 
 class UserUpdate(BaseModel):
-    password: str = None
+    curpassword: str = None
+    newpassword: str = None
     email: str = None
 
 class AssetAdd(BaseModel):

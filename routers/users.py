@@ -64,59 +64,26 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
 def read_users_me(current_user: dict = Depends(get_current_user)):
     return {"user": current_user["sub"]}
 
-# @app.post("/user/v1/logout-user")
-# def logout_user(user : UserLogin , db : Session =Depends(get_db)):
-#     existing_user=db.query(User).filter(User.username==user.username).first()
-#     if not existing_user:
-#         raise HTTPException(status_code=400, detail=f"{user.username} doesnt exists")
-#     if existing_user.is_active==False:
-#          raise HTTPException(status_code=400, detail=f"{user.username} doesnt exists")
-#     if existing_user.session==False:
-#         raise HTTPException(status_code=400, detail=f"{user.username} already logged out")
-#     if not verify_password(user.password,existing_user.password):
-#         raise HTTPException(status_code=400, detail=f"{user.username} galat password daal dis")
-#     existing_user.session = False
-#     db.add(existing_user)
-#     db.commit()
-#     db.refresh(existing_user)
-#     return {"message": f"{user.username} logged out successfully"}
 
-# @app.post("/user/v1/delete-user")
-# def delete_user(user :  dict = Depends(get_current_user) , db : Session = Depends(get_db)):
-#     username = user["sub"]
-#     existing_user = db.query(User).filter(User.username==username).first()
-#     if not existing_user:
-#         raise HTTPException(status_code=400, detail=f"{username} doesnt exists")
-#     if existing_user.is_active==False:
-#          raise HTTPException(status_code=400, detail=f"{username} doesnt exists")
-#     if existing_user.session==False:
-#         raise HTTPException(status_code=400, detail=f"{username} logged out , kindly login to update")
-#     if not verify_password(user.password,existing_user.password):
-#         raise HTTPException(status_code=400, detail=f"{username} galat password daal dis")
+@router.post("/update-user-email")
+def update_user(emailupdateuser: UserUpdate, current_user: dict = Depends(get_current_user),db: Session = Depends(get_db)):
+    user_update = db.query(User).filter(User.username == current_user["sub"]).first()
+    user_update.email=emailupdateuser.email
+    db.commit()
+    db.refresh(user_update)
+    return {"message":f"{user_update.username} password updated"}
 
-#     existing_user.is_active = False
-#     db.delete(existing_user)
-#     db.commit()
-    
-#     return {"message": f"{username} deleted successfully"}
-
-# @router.put("/update-email")
-# def update_email(update_data = UserUpdate, user :  dict = Depends(get_current_user), db : Session = Depends(get_db)):
-#     username = user["sub"]
-#     existing_user = db.query(User).filter(User.username==username).first()
-#     if not existing_user:
-#         raise HTTPException(status_code=400, detail=f"{username} doesnt exists")
-#     if existing_user.is_active==False:
-#          raise HTTPException(status_code=400, detail=f"{username} doesnt exists")
-#     if existing_user.session==False:
-#         raise HTTPException(status_code=400, detail=f"{username} logged out , kindly login to delete")
-#     if not verify_password(user.password,existing_user.password):
-#         raise HTTPException(status_code=400, detail=f"{username} galat password daal dis")
-    
-#     existing_user.email=update_data.email
-#     db.commit()
-#     db.refresh(existing_user)
-#     return {"message": f"{username} email changed successfully"}
+@router.post("/update-user-password")
+def update_user(emailupdateuser: UserUpdate, current_user: dict = Depends(get_current_user),db: Session = Depends(get_db)):
+    user_update = db.query(User).filter(User.username == current_user["sub"]).first()
+    print(emailupdateuser.curpassword)
+    print(user_update.password)
+    if not verify_password(emailupdateuser.curpassword,user_update.password):
+        raise HTTPException(status_code=403, detail="Wrong password")
+    user_update.password=hash_password(emailupdateuser.newpassword)
+    db.commit()
+    db.refresh(user_update)
+    return {"message":f"{user_update.username} password updated"}
 
 @router.get("/get-users")
 def get_users(current_user: dict = Depends(get_current_user),db: Session = Depends(get_db)):
