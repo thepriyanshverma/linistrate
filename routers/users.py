@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models import User
 from database import get_db
-from schemas import UserCreate , UserLogin , UserUpdate
+from schemas import UserCreate , UserLogin , UserUpdate , UserDelete
 from utils import create_access_token, encrypt_data,decrypt_data,hash_password , verify_password
 from auth import get_current_user, custom_openapi
+from datetime import datetime
 
 router = APIRouter(prefix="/user/v1", tags=["users"])
 
@@ -76,7 +77,6 @@ def update_user(emailupdateuser: UserUpdate, current_user: dict = Depends(get_cu
 @router.post("/update-user-password")
 def update_user(emailupdateuser: UserUpdate, current_user: dict = Depends(get_current_user),db: Session = Depends(get_db)):
     user_update = db.query(User).filter(User.username == current_user["sub"]).first()
-    print(emailupdateuser.curpassword)
     print(user_update.password)
     if not verify_password(emailupdateuser.curpassword,user_update.password):
         raise HTTPException(status_code=403, detail="Wrong password")
@@ -95,3 +95,18 @@ def get_users(current_user: dict = Depends(get_current_user),db: Session = Depen
     fetch_users = db.query(User.username).all()
     usernames = [username for (username,) in fetch_users]
     return {"users": usernames}
+
+@router.post("/delete-user")
+def delete_user(user : UserDelete , current_user: dict = Depends(get_current_user),db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.username==current_user["sub"]).first()
+    if not verify_password(user.password,existing_user.password):
+        raise HTTPException(status_code=403, detail="Wrong password")
+    now=datetime.now()
+    formatted_datetime = now.strftime("%Y_%m_%d_%H_%M_%S")
+    new_username = existing_user.username+'_delete_'+formatted_datetime
+    existing_user.email = existing_user.email+'_delete_'+formatted_datetime
+    existing_user.username = existing_user.username+'_delete_'+formatted_datetime
+    existing_user.is_active = False
+    existing_user.username = new_username
+    db.commit()
+    return {"message":f"User deleted successfully"}

@@ -17,9 +17,13 @@ import {
   Clock, Globe, Smartphone, Mail
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+
 
 const Account = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
   const [autoLogout, setAutoLogout] = useState(true);
@@ -27,38 +31,59 @@ const Account = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [deletionLoading, setDeletionLoading] = useState(false);
   const { toast } = useToast();
+  const [passwordDeletion, setPasswordDeletion] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleEmailUpdate = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('http://localhost:8000/user/v1/update-user-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('linistrate_token')}`,
-        },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to update email');
+  if (!isValidEmail(email)) {
+    toast({
+      title: "Invalid Email",
+      description: "Please enter a valid email address.",
+      variant: "destructive",
+    });
+    return;
+  }
 
-      toast({
-        title: "Email Updated",
-        description: "Your email has been updated successfully.",
-        variant: "success",
-      });
-    } catch (err) {
-      toast({
-        title: "Email Update Failed",
-        description: err.message || "An error occurred while updating email.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setEmailLoading(true);
+    const res = await fetch('http://localhost:8000/user/v1/update-user-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('linistrate_token')}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to update email');
+
+    toast({
+      title: "Email Updated",
+      description: "Your email has been updated successfully.",
+      variant: "success",
+    });
+  } catch (err) {
+    toast({
+      title: "Email Update Failed",
+      description: err.message || "An error occurred while updating email.",
+      variant: "destructive",
+    });
+  } finally {
+    setEmailLoading(false);
+  }
+};
+
 
   const handlePasswordUpdate = async () => {
     if (newPassword !== confirmPassword) {
@@ -70,7 +95,7 @@ const Account = () => {
       return;
     }
     try {
-      setLoading(true);
+      setPasswordLoading(true);
       const res = await fetch('http://localhost:8000/user/v1/update-user-password', {
         method: 'POST',
         headers: {
@@ -101,12 +126,56 @@ const Account = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setPasswordLoading(false);
     }
   };
 
+const handleAcountDeletion = async () => {
+  if (!passwordDeletion) {
+    toast({
+      title: "Error",
+      description: "Please enter your password to delete the account.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    setDeletionLoading(true);
+    const res = await fetch("http://localhost:8000/user/v1/delete-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("linistrate_token")}`,
+      },
+      body: JSON.stringify({ password: passwordDeletion }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Account deletion failed.");
+
+    toast({
+      title: "Account Deleted",
+      description: "Your account has been deleted successfully.",
+      variant: "success",
+    });
+
+    localStorage.removeItem("linistrate_token");
+    navigate('/dashboard')
+  } catch (err) {
+    toast({
+      title: "Deletion Failed",
+      description: err.message || "An error occurred while deleting the account.",
+      variant: "destructive",
+    });
+  } finally {
+    setDeletionLoading(false);
+  }
+};
+
+
   return (
-    <div className="space-y-4 animate-fade-in w-full mt-4 md:mt-8">
+  <div className="space-y-4 animate-fade-in w-full -mt-64">
       <div className="flex items-center space-x-4">
         <div>
           <h1 className="text-3xl font-bold">{user?.name || 'User'}</h1>
@@ -138,8 +207,8 @@ const Account = () => {
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
-                <Button className="w-full" onClick={handleEmailUpdate} disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Changes'}
+                <Button className="w-full" onClick={handleEmailUpdate} disabled={emailLoading}>
+                  {emailLoading ? 'Saving...' : 'Save Changes'}
                 </Button>
               </CardContent>
             </Card>
@@ -192,24 +261,51 @@ const Account = () => {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Password & Authentication</CardTitle>
+                
                 <CardDescription>Manage your login credentials</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                  <Input id="current-password" type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-[30px]"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                  <Input id="new-password" type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-[30px]"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                  <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-[30px]"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </Button>
                 </div>
-                <Button className="w-full" onClick={handlePasswordUpdate} disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Password'}
+                <Button className="w-full" onClick={handlePasswordUpdate} disabled={passwordLoading}>
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
                 </Button>
                 <Separator />
                 <div className="flex items-center justify-between">
@@ -224,51 +320,117 @@ const Account = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Session Management</CardTitle>
-                <CardDescription>Manage your active sessions</CardDescription>
+                <CardTitle>Account Deletion</CardTitle>
+                {/* <CardDescription>Manage your active sessions</CardDescription> */}
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">Chrome on Windows</div>
-                        <div className="text-xs text-muted-foreground">Current session</div>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Smartphone className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="text-sm font-medium">Mobile App</div>
-                        <div className="text-xs text-muted-foreground">Last seen 1 hour ago</div>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">Revoke</Button>
-                  </div>
+                <div className="space-y-2 relative">
+                  <Label htmlFor="delete-password">Enter Password</Label>
+                  <Input id="delete-password" type={showDeletePassword ? 'text' : 'password'} value={passwordDeletion} onChange={(e) => setPasswordDeletion(e.target.value)} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-[30px]"
+                    onClick={() => setShowDeletePassword(!showDeletePassword)}
+                  >
+                    {showDeletePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </Button>
                 </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Auto Logout</Label>
-                    <div className="text-sm text-muted-foreground">After 30 minutes of inactivity</div>
-                  </div>
-                  <Switch checked={autoLogout} onCheckedChange={setAutoLogout} />
-                </div>
+                <Button className="w-full" onClick={handleAcountDeletion} disabled={deletionLoading}>
+                  {deletionLoading ? 'Deleting...' : 'Delete Account'}
+                </Button>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="preferences" className="space-y-4">
-          {/* Preferences content remains unchanged */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Settings</CardTitle>
+              <CardDescription>Configure how you receive notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Email Notifications</Label>
+                  <div className="text-sm text-muted-foreground">
+                    Receive email updates about your account
+                  </div>
+                </div>
+                <Switch checked={notifications} onCheckedChange={setNotifications} />
+              </div>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-base">Notification Types</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4" />
+                      <span className="text-sm">Command execution results</span>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Bell className="h-4 w-4" />
+                      <span className="text-sm">System alerts</span>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Activity className="h-4 w-4" />
+                      <span className="text-sm">Asset status changes</span>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
-          {/* Activity content remains unchanged */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Your recent actions and events</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4 p-3 border rounded-lg">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Command executed successfully</div>
+                    <div className="text-xs text-muted-foreground">System Information on web-server-01 • 2 hours ago</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 p-3 border rounded-lg">
+                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">New asset added</div>
+                    <div className="text-xs text-muted-foreground">app-server-02 added to Application Servers • 1 day ago</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 p-3 border rounded-lg">
+                  <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Password changed</div>
+                    <div className="text-xs text-muted-foreground">Account password updated • 3 days ago</div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 p-3 border rounded-lg">
+                  <div className="h-2 w-2 bg-purple-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Login from new device</div>
+                    <div className="text-xs text-muted-foreground">Mobile app login detected • 1 week ago</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -316,7 +316,7 @@ const EnhancedRegister = () => {
     } catch {
       toast({
         title: 'Registration failed',
-        description: 'Please try again with a different username.',
+        description: 'Please try again with a different username/email.',
         variant: 'destructive',
       });
       setCurrentLogSet('failure');

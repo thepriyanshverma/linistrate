@@ -17,6 +17,9 @@ class UserUpdate(BaseModel):
     newpassword: str = None
     email: str = None
 
+class UserDelete(BaseModel):
+    password: str = None
+    
 class AssetAdd(BaseModel):
     name: str
     ip: str

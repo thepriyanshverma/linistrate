@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Eye } from "lucide-react";
@@ -41,31 +42,43 @@ export default function ExecutionHistory() {
 
     fetchExecutions();
   }, []);
+return (
+  <>
+    <div className="space-y-4 animate-fade-in w-full -mt-64">
+      <div>
+        <h1 className="text-3xl font-bold">Execution History</h1>
+        <p className="text-muted-foreground">
+          Monitor your last executed commands and scripts
+        </p>
+      </div>
+    </div>
 
-  return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-    {executions.map((exec) => (
+      {executions.map((exec) => (
         <Card key={exec.command_id} className="shadow-lg rounded-2xl">
           <CardContent className="p-4 space-y-3">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">{exec.command}</h2>
               <Badge
-              className={`text-white ${
-                exec.status === "success"
-                  ? "bg-green-500 hover:bg-green-500"
-                  : "bg-red-500 hover:bg-red-500"
-              }`}
-            >
-              {exec.status.toUpperCase()}
-            </Badge>
+                className={`text-white ${
+                  exec.status === "success"
+                    ? "bg-green-500 hover:bg-green-500"
+                    : "bg-red-500 hover:bg-red-500"
+                }`}
+              >
+                {exec.status.toUpperCase()}
+              </Badge>
             </div>
+
             <div className="text-sm text-gray-500">
               {new Date(exec.created_at).toLocaleString()}
             </div>
+
             <div className="text-sm font-medium">
               <span className="text-gray-600">Asset:</span>{" "}
               {exec.asset} ({exec.assetIp})
             </div>
+
             <div className="flex items-center space-x-2 text-sm">
               <div
                 className="w-3 h-3 rounded-full"
@@ -73,6 +86,7 @@ export default function ExecutionHistory() {
               />
               <span>{exec.group}</span>
             </div>
+
             <Dialog>
               <DialogTrigger asChild>
                 <button className="flex items-center gap-1 text-sm text-blue-600 hover:underline">
@@ -93,5 +107,6 @@ export default function ExecutionHistory() {
         </Card>
       ))}
     </div>
-  );
+  </>
+);
 }
