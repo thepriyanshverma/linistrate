@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import users, assets, commands ,groups
+from routers import users, assets, commands ,groups , blogs
 from auth import get_current_user, custom_openapi  # import from your new auth.py
 import logging
 
@@ -25,6 +25,7 @@ app.include_router(users.router, tags=["users"])
 app.include_router(assets.router, tags=["assets"])
 app.include_router(commands.router, tags=["commands"])
 app.include_router(groups.router, tags=["groups"])
+app.include_router(blogs.router, tags=["blogs"])
 
 app.openapi = lambda: custom_openapi(app)
 

@@ -19,7 +19,7 @@ class UserUpdate(BaseModel):
 
 class UserDelete(BaseModel):
     password: str = None
-    
+
 class AssetAdd(BaseModel):
     name: str
     ip: str
@@ -122,3 +122,19 @@ class GroupResponse(GroupBase):
 
     class Config:
         from_attributes = True
+
+class CreateBlog(BaseModel):
+    blog_title: str
+    asset_post_type: bool
+    blog_content: str
+    asset_id: Optional[int] = None
+
+
+class BlogResponse(BaseModel):
+    blog_id: int
+    blog_title: str
+    blog_content: str
+    blog_created_at: datetime
+
+class EditBlog(CreateBlog):
+    pass

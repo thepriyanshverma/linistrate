@@ -16,6 +16,8 @@ class User(Base):
     assets_r = relationship("Asset", back_populates="owners_r")
     group_r = relationship("Group", back_populates="owners_r")
     commands_r = relationship("CommandRequest", back_populates="owners_r")
+    group_r = relationship("Group", back_populates="owners_r")
+    blogs_r = relationship("Blog", back_populates="owners_r")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -36,6 +38,7 @@ class Asset(Base):
     owners_r = relationship("User", back_populates="assets_r")
     commands_r = relationship("CommandRequest", back_populates="assets_r")
     group_r = relationship("Group", back_populates="assets_r")
+    blogs_r = relationship("Blog", back_populates="assets_r")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -69,3 +72,19 @@ class CommandRequest(Base):
     owners_r = relationship("User", back_populates="commands_r")
     assets_r = relationship("Asset",  back_populates="commands_r")
 
+class Blog(Base):
+    __tablename__ = "blogs"
+    blog_id = Column(Integer,primary_key=True , index= True)
+    blog_title = Column(String, nullable= False)
+    asset_post_type = Column(Boolean, default=False)
+    blog_content = Column(String, nullable=False)
+    blog_created_at = Column(DateTime, default=datetime.utcnow)
+    blog_is_active = Column(Boolean ,default=True)
+
+    #foreign key to the asset table
+    asset_id = Column(Integer,ForeignKey("assets.asset_id"),nullable=True)
+    owner_id = Column(Integer,ForeignKey("users.user_id"))
+    
+    #relations
+    assets_r = relationship("Asset", back_populates="blogs_r")
+    owners_r = relationship("User", back_populates="blogs_r")
