@@ -29,16 +29,7 @@ class AssetAdd(BaseModel):
     group: str
     group_color: Optional[str] = "#3b82f6"
 
-class AssetBase(BaseModel):
-    name: str
-    ip: str
-    technology: str
-    username: str
-    password: str
-    group: str
-    is_active: Optional[bool] = True
-
-class AssetCreate(AssetBase):
+class AssetEdit(AssetAdd):
     pass
 
 class AssetUpdate(BaseModel):

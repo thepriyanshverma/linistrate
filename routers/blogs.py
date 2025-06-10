@@ -39,7 +39,9 @@ def delete_blog(blog_id: int , current_user: dict = Depends(get_current_user), d
 
 @router.post("/edit-blog/{blog_id}")
 def edit_blog(blog_id: int ,blog: EditBlog, current_user: dict = Depends(get_current_user), db : Session = Depends(get_db)):
-    edit_blog= db.query(Blog).filter(Blog.blog_id==blog_id).first()
+    edit_blog= db.query(Blog).filter(Blog.blog_id==blog_id , Blog.blog_id==blog_id).first()
+    if not edit_blog:
+        raise HTTPException(status_code=404, detail="Blog not found")
     if blog.asset_post_type:
         edit_blog.blog_title=blog.blog_title
         edit_blog.blog_content=encrypt_data(blog.blog_content)

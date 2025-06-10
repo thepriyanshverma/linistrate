@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session , joinedload
-from models import Asset , User , Group
+from models import Asset , User , Group , Technology
 from database import get_db
-from schemas import AssetAdd , AssetBase , AssetCreate , AssetResponse , AssetUpdate , DeleteAsset
+from schemas import AssetAdd , AssetResponse , AssetEdit
 from utils import create_access_token, encrypt_data,decrypt_data,hash_password , verify_password
 from auth import get_current_user, custom_openapi
 from datetime import datetime
@@ -13,7 +13,45 @@ router = APIRouter(prefix="/asset/v1", tags=["assets"])
 def add_asset(asset : AssetAdd ,current_user :  dict = Depends(get_current_user), db : Session = Depends(get_db)):
     existing_asset=db.query(Asset).filter(Asset.ip==asset.ip).first()
     existing_group=db.query(Group).filter(Group.name==asset.group).first()
+    existing_tech=db.query(Technology).filter(Technology.name==asset.technology).first()
     if existing_asset:
+        raise HTTPException(status_code=400 , detail=f"Asset IP:{asset.ip} already exists")
+    if not existing_group:
+        new_group = Group(name=asset.group,
+                          color=asset.group_color,
+                          owner_id=current_user["user_id"],
+                          created_at=datetime.utcnow())
+        db.add(new_group)
+        db.commit()
+        db.refresh(new_group)
+        group_id=new_group.group_id
+    else:
+        group_id=existing_group.group_id
+    if not existing_tech:
+        raise HTTPException(status_code=400 , detail=f"Technology:{asset.technology} doesn't exists")
+    else:
+        technology_id=existing_tech.technology_id
+    new_asset=Asset(
+    name = asset.name,
+    ip = asset.ip,
+    technology = technology_id,
+    username = asset.username,
+    password = encrypt_data(asset.password),
+    group_id = group_id,
+    owner_id = current_user["user_id"],
+    created_at = datetime.utcnow(),
+    is_active = True
+    )
+    db.add(new_asset)
+    db.commit()
+    db.refresh(new_asset)
+    return new_asset
+
+@router.post("/edit-asset")
+def edit_asset(asset : AssetEdit ,current_user :  dict = Depends(get_current_user), db : Session = Depends(get_db)):
+    existing_asset=db.query(Asset).filter(Asset.ip==asset.ip).first()
+    existing_group=db.query(Group).filter(Group.name==asset.group).first()
+    if not existing_asset:
         raise HTTPException(status_code=400 , detail=f"Asset IP:{asset.ip} already exists")
     if not existing_group:
         new_group = Group(name=asset.group,
@@ -41,7 +79,6 @@ def add_asset(asset : AssetAdd ,current_user :  dict = Depends(get_current_user)
     db.commit()
     db.refresh(new_asset)
     return new_asset
-
 
 @router.delete("/delete-asset/{asset_id}")
 def delete_asset(asset_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):

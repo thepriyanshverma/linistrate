@@ -17,22 +17,7 @@ interface AddAssetFormProps {
 }
 
 
-//neeche wala maine edit kiya
-const submitAssetToBackend = async (assetData: any, fetchWithAuth: (input: RequestInfo, init?: RequestInit) => Promise<any>) => {
-  try {
-    const data = await fetchWithAuth('http://localhost:8000/asset/v1/add-asset', {
-      method: 'POST',
-      body: JSON.stringify(assetData),
-    });
-    return data;
-  } catch (error) {
-    console.error('Error submitting asset:', error);
-    return null;
-  }
-};
 
-
-//yaha tak
 const AddAssetForm = ({ isOpen, onClose, onAssetAdded }: AddAssetFormProps) => {
   const { toast } = useToast();
   const { fetchWithAuth } = useAuth(); // ✅ Access fetchWithAuth
@@ -89,26 +74,28 @@ useEffect(() => {
   }
 }, [isOpen]);
 
-  const technologies = [
-    'Ubuntu 22.04',
-    'Ubuntu 20.04',
-    'CentOS 8',
-    'CentOS 7',
-    'Debian 11',
-    'Debian 10',
-    'Alpine Linux',
-    'Red Hat Enterprise Linux',
-    'SUSE Linux'
-  ];
+const [technologies, setTechnologies] = useState<{ technology_id: number; name: string }[]>([]);
 
-  const existingGroups = [
-    'Web Servers',
-    'Database Servers',
-    'Application Servers',
-    'Cache Servers',
-    'Load Balancers',
-    'Monitoring Servers'
-  ];
+useEffect(() => {
+  const fetchTechnologies = async () => {
+    try {
+      const res = await fetchWithAuth('http://localhost:8000/technology/v1/get-technologies');
+      if (Array.isArray(res)) {
+        setTechnologies(res);
+      } else {
+        console.error('Unexpected response format:', res);
+      }
+    } catch (err) {
+      console.error('Failed to fetch technologies:', err);
+    }
+  };
+
+  if (isOpen) {
+    fetchTechnologies();
+  }
+}, [isOpen]);
+
+
 
   const predefinedColors = [
     '#3b82f6', // blue
@@ -249,8 +236,8 @@ const handleInputChange = (field: string, value: string) => {
               </SelectTrigger>
               <SelectContent>
                 {technologies.map(tech => (
-                  <SelectItem key={tech} value={tech}>
-                    {tech}
+                  <SelectItem key={tech.technology_id} value={tech.name}>
+                    {tech.name}
                   </SelectItem>
                 ))}
               </SelectContent>

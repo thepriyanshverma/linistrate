@@ -1,6 +1,8 @@
 from sqlalchemy import Column , Integer , String , Boolean , ForeignKey , DateTime
 from database import Base
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from datetime import datetime
 
 class User(Base):
@@ -16,8 +18,9 @@ class User(Base):
     assets_r = relationship("Asset", back_populates="owners_r")
     group_r = relationship("Group", back_populates="owners_r")
     commands_r = relationship("CommandRequest", back_populates="owners_r")
-    group_r = relationship("Group", back_populates="owners_r")
     blogs_r = relationship("Blog", back_populates="owners_r")
+    script_category_r = relationship("ScriptsCategory", back_populates="owners_r")
+    scripts_r = relationship("Scripts", back_populates="owners_r")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -25,7 +28,7 @@ class Asset(Base):
     asset_id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     ip = Column(String, unique=True, index=True, nullable=False)
-    technology = Column(String, nullable=False)
+    technology = Column(Integer,ForeignKey("technologies.technology_id"))
     username = Column(String, nullable=False)
     password = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -39,6 +42,7 @@ class Asset(Base):
     commands_r = relationship("CommandRequest", back_populates="assets_r")
     group_r = relationship("Group", back_populates="assets_r")
     blogs_r = relationship("Blog", back_populates="assets_r")
+    technologies_r = relationship("Technology", back_populates="assets_r")
 
 class Group(Base):
     __tablename__ = "groups"
@@ -88,3 +92,43 @@ class Blog(Base):
     #relations
     assets_r = relationship("Asset", back_populates="blogs_r")
     owners_r = relationship("User", back_populates="blogs_r")
+
+class Scripts(Base):
+    __tablename__ = "scripts"
+    script_uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    script_name = Column(String, nullable= False)
+    script_extension = Column(String, nullable= False)
+    script_source = Column(String, nullable= False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+    script_is_active = Column(Boolean ,default=True)
+
+    owner_id= Column(Integer,ForeignKey("users.user_id"))
+    script_category_id = Column(Integer,ForeignKey("scripts_category.script_category_id"),nullable=False)
+
+    owners_r = relationship("User", back_populates="scripts_r")
+    script_category_r = relationship("ScriptsCategory", back_populates="scripts_r")
+
+class ScriptsCategory(Base):
+    __tablename__ = "scripts_category"
+    script_category_id = Column(Integer,primary_key=True , index= True)
+    script_category_name = Column(String, nullable= False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+    script_category_is_active = Column(Boolean ,default=True)
+    
+    owner_id= Column(Integer,ForeignKey("users.user_id"))
+
+    owners_r = relationship("User", back_populates="script_category_r")
+    scripts_r = relationship("Scripts", back_populates="script_category_r")
+
+class Technology(Base):
+    __tablename__ = "technologies"
+
+    technology_id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+
+    assets_r = relationship("Asset",  back_populates="technologies_r")
+

@@ -25,12 +25,23 @@ interface Asset {
   disk: number;
 }
 
+interface Technology {
+  id: number;
+  name: string;
+}
+
+interface Group {
+  id: number;
+  name: string;
+}
 const AssetManager = () => {
   const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [technologies, setTechnologies] = useState<Technology[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -42,26 +53,16 @@ const AssetManager = () => {
     group: ''
   });
 
-  const technologies = [
-    'Ubuntu 22.04',
-    'Ubuntu 20.04',
-    'CentOS 8',
-    'CentOS 7',
-    'Debian 11',
-    'Debian 10',
-    'Alpine Linux',
-    'Red Hat Enterprise Linux',
-    'SUSE Linux'
-  ];
 
-  const groups = [
-    'Web Servers',
-    'Database Servers',
-    'Application Servers',
-    'Cache Servers',
-    'Load Balancers',
-    'Monitoring Servers'
-  ];
+
+  // const groups = [
+  //   'Web Servers',
+  //   'Database Servers',
+  //   'Application Servers',
+  //   'Cache Servers',
+  //   'Load Balancers',
+  //   'Monitoring Servers'
+  // ];
 
   useEffect(() => {
     fetchAssets();
