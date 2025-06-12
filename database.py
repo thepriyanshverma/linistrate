@@ -19,8 +19,9 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+        db.commit()  # Optional for GET, safe to keep
+    except:
+        db.rollback()
+        raise
     finally:
         db.close()
-
-
-Base.metadata.create_all(bind=engine)

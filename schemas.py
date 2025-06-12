@@ -23,24 +23,22 @@ class UserDelete(BaseModel):
 class AssetAdd(BaseModel):
     name: str
     ip: str
-    technology: str
+    technology: int
     username: str
     password: str
     group: str
     group_color: Optional[str] = "#3b82f6"
 
-class AssetEdit(AssetAdd):
-    pass
-
 class AssetUpdate(BaseModel):
-    name: Optional[str]
-    ip: Optional[str]
-    technology: Optional[str]
-    username: Optional[str]
-    password: Optional[str]
-    group: Optional[str]
-    group_color: Optional[str]
-    is_active: Optional[bool]
+    name: Optional[str] = None
+    ip: Optional[str] = None
+    technology: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    group: Optional[str] = None
+    group_color: Optional[str] = None
+    is_active: Optional[bool] = None
+
 
 class GroupResponse(BaseModel):
     group_id: int
@@ -54,7 +52,7 @@ class AssetResponse(BaseModel):
     asset_id: int
     name: str
     ip: str
-    technology: str
+    technology: int
     username: str
     password: str
     created_at: datetime

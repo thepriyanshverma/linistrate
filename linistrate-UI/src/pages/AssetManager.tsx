@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Edit, Trash2, Settings, Server, Plus } from 'lucide-react';
@@ -15,10 +22,12 @@ interface Asset {
   name: string;
   ip: string;
   technology: string;
+  technology_id: number;
   username: string;
   password: string;
   status: 'online' | 'offline' | 'maintenance';
   group: string;
+  group_id: number;
   groupColor: string;
   cpu: number;
   memory: number;
@@ -33,7 +42,9 @@ interface Technology {
 interface Group {
   id: number;
   name: string;
+  color?: string;
 }
+
 const AssetManager = () => {
   const { toast } = useToast();
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -42,7 +53,6 @@ const AssetManager = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [technologies, setTechnologies] = useState<Technology[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
-
   const [editForm, setEditForm] = useState({
     name: '',
     ip: '',
@@ -53,88 +63,90 @@ const AssetManager = () => {
     group: ''
   });
 
-
-
-  // const groups = [
-  //   'Web Servers',
-  //   'Database Servers',
-  //   'Application Servers',
-  //   'Cache Servers',
-  //   'Load Balancers',
-  //   'Monitoring Servers'
-  // ];
-
-  useEffect(() => {
-    fetchAssets();
-  }, []);
-
-  const fetchAssets = async () => {
+  const fetchAll = async () => {
     try {
-      const token = localStorage.getItem('linistrate_token'); // get token from storage
+      const token = localStorage.getItem('linistrate_token');
+      if (!token) throw new Error('No authentication token found.');
 
-      if (!token) {
-        throw new Error('No authentication token found.');
+      const [techRes, groupRes, assetRes] = await Promise.all([
+        fetch('http://localhost:8000/technology/v1/get-technologies', {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        }),
+        fetch('http://localhost:8000/group/v1/get-groups', {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        }),
+        fetch('http://localhost:8000/asset/v1/get-assets', {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+        }),
+      ]);
+
+      if (!techRes.ok || !groupRes.ok || !assetRes.ok) {
+        throw new Error('Failed to fetch some resources.');
       }
 
-      const res = await fetch('http://localhost:8000/asset/v1/get-assets', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+      const techData = await techRes.json();
+      const groupData = await groupRes.json();
+      const assetData = await assetRes.json();
+
+      setTechnologies(techData);
+      setGroups(groupData);
+
+      const mappedAssets: Asset[] = assetData.map((a: any) => {
+        const tech = techData.find((t: any) => t.id === Number(a.technology));
+        const group = a.group_r;
+        return {
+          id: a.asset_id,
+          name: a.name,
+          ip: a.ip,
+          technology: tech?.name || 'Unknown',
+          technology_id: tech?.id || -1,
+          username: a.username,
+          password: a.password,
+          status: 'online',
+          group: group?.name || 'Unknown',
+          group_id: group?.id || -1,
+          groupColor: group?.color || '#9CA3AF',
+          cpu: 0,
+          memory: 0,
+          disk: 0,
+        };
       });
-
-      if (!res.ok) {
-        throw new Error(`Error fetching assets: ${res.status} ${res.statusText}`);
-      }
-
-      const data = await res.json();
-
-      // Map backend asset_id to frontend id and fill missing fields
-      const mappedAssets = data.map((a: any) => ({
-        id: a.asset_id,
-        name: a.name,
-        ip: a.ip,
-        technology: a.technology,
-        username: a.username,
-        password: a.password,
-        status: 'online',  // Default status, update if you have real data
-        group: groups[a.group_id - 1] || 'Unknown',  // Assuming group_id starts at 1
-        groupColor: '',    // You can add logic for groupColor if needed
-        cpu: 0,
-        memory: 0,
-        disk: 0,
-      }));
 
       setAssets(mappedAssets);
     } catch (err) {
-      console.error('Failed to fetch assets:', err);
+      console.error('Error loading assets:', err);
       toast({
         title: 'Error',
-        description: 'Failed to load assets from the server. Please login again.',
+        description: 'Failed to load data. Please login again.',
         variant: 'destructive',
       });
     }
   };
 
-  const handleAssetAdded = (newAsset: any) => {
-    setAssets(prev => [...prev, newAsset]);
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  const handleAssetAdded = () => {
+    fetchAll();
   };
 
   const handleEdit = (asset: Asset) => {
     setSelectedAsset(asset);
-    setEditForm({
-      name: asset.name,
-      ip: asset.ip,
-      username: asset.username,
-      password: '',
-      confirmPassword: '',
-      technology: asset.technology,
-      group: asset.group
-    });
+setEditForm({
+  name: asset.name,
+  ip: asset.ip,
+  username: asset.username,
+  password: '',
+  confirmPassword: '',
+  technology: String(asset.technology_id), // 👈 store as string
+  group: String(groups.find(g => g.name === asset.group)?.id || ''), // 👈 match by name, get id
+});
+
     setIsEditOpen(true);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!editForm.name || !editForm.ip || !editForm.username || !editForm.technology || !editForm.group) {
@@ -155,20 +167,47 @@ const AssetManager = () => {
       return;
     }
 
-    if (selectedAsset) {
-      setAssets(prev => prev.map(asset =>
-        asset.id === selectedAsset.id
-          ? {
-            ...asset,
-            name: editForm.name,
-            ip: editForm.ip,
-            username: editForm.username,
-            technology: editForm.technology,
-            group: editForm.group,
-            ...(editForm.password && { password: editForm.password })
-          }
-          : asset
-      ));
+    try {
+      const token = localStorage.getItem('linistrate_token');
+      if (!token) throw new Error('No token');
+
+      const techId = Number(editForm.technology);
+      const groupId = Number(editForm.group);
+      const groupObj = groups.find(g => g.id === groupId);
+
+      if (!techId || !groupObj) {
+        toast({
+          title: 'Invalid selection',
+          description: 'Technology or group not found.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const payload = {
+        name: editForm.name,
+        ip: editForm.ip,
+        username: editForm.username,
+        password: editForm.password || selectedAsset?.password,
+        technology: techId,
+        group: groupId,
+        group_color: groupObj.color || '#9CA3AF',
+        is_active: true,
+      };
+
+      const res = await fetch(`http://localhost:8000/asset/v1/edit-asset/${selectedAsset?.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(JSON.stringify(errData));
+      }
 
       toast({
         title: "Asset updated",
@@ -177,59 +216,37 @@ const AssetManager = () => {
 
       setIsEditOpen(false);
       setSelectedAsset(null);
+      fetchAll();
+    } catch (err) {
+      console.error('Update error:', err);
+      toast({
+        title: "Error updating asset",
+        description: String(err),
+        variant: "destructive",
+      });
     }
   };
 
   const handleDelete = async (asset: Asset) => {
-    if (window.confirm(`Are you sure you want to delete ${asset.name}? This action cannot be undone.`)) {
-      try {
-        const token = localStorage.getItem('linistrate_token');
-        if (!token) throw new Error('No authentication token found.');
+    if (!window.confirm(`Delete ${asset.name}? This action cannot be undone.`)) return;
 
-        const res = await fetch(`http://localhost:8000/asset/v1/delete-asset/${asset.id}`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-          },
-        });
+    try {
+      const token = localStorage.getItem('linistrate_token');
+      if (!token) throw new Error('No authentication token found.');
 
-        if (!res.ok) {
-          throw new Error(`Failed to delete: ${res.statusText}`);
-        }
+      const res = await fetch(`http://localhost:8000/asset/v1/delete-asset/${asset.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
 
-        setAssets(prev => prev.filter(a => a.id !== asset.id));
+      if (!res.ok) throw new Error(`Failed to delete: ${res.statusText}`);
 
-        toast({
-          title: "Asset deleted",
-          description: `${asset.name} has been deleted.`,
-        });
-      } catch (err) {
-        console.error('Delete error:', err);
-        toast({
-          title: "Error deleting asset",
-          description: String(err),
-          variant: "destructive",
-        });
-      }
-    }
-  };
+      setAssets(prev => prev.filter(a => a.id !== asset.id));
+      toast({ title: "Asset deleted", description: `${asset.name} has been deleted.`, variant: "success" });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'offline': return 'bg-red-500';
-      case 'maintenance': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'online': return 'default';
-      case 'offline': return 'destructive';
-      case 'maintenance': return 'secondary';
-      default: return 'outline';
+    } catch (err) {
+      console.error('Delete error:', err);
+      toast({ title: "Error deleting asset", description: String(err), variant: "destructive" });
     }
   };
 
@@ -256,161 +273,83 @@ const AssetManager = () => {
                   <CardTitle className="text-lg">{asset.name}</CardTitle>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${getStatusColor(asset.status)}`} />
-                  <Badge variant={getStatusBadge(asset.status)}>
-                    {asset.status}
-                  </Badge>
+                  <div className={`w-2 h-2 rounded-full ${asset.status === 'online' ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <Badge variant="outline">{asset.status}</Badge>
                 </div>
               </div>
-              <CardDescription>{asset.group}</CardDescription>
+              <CardDescription>
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
+                  style={{ backgroundColor: asset.groupColor || '#9CA3AF' }}>
+                  {asset.group || 'No Group'}
+                </span>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">IP Address:</span>
-                  <span className="font-mono">{asset.ip}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Technology:</span>
-                  <span>{asset.technology}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Username:</span>
-                  <span className="font-mono">{asset.username}</span>
-                </div>
+                <div className="flex justify-between"><span className="text-muted-foreground">IP Address:</span><span className="font-mono">{asset.ip}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Technology:</span><span>{asset.technology}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Username:</span><span className="font-mono">{asset.username}</span></div>
               </div>
-
               <div className="flex space-x-2 pt-2 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(asset)}
-                  className="flex-1"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(asset)}
-                  className="flex-1"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleEdit(asset)} className="flex-1"><Edit className="h-4 w-4 mr-2" />Edit</Button>
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(asset)} className="flex-1"><Trash2 className="h-4 w-4 mr-2" />Delete</Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Add Asset Form Dialog */}
-      <AddAssetForm
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        onAssetAdded={handleAssetAdded}
-      />
+      <AddAssetForm isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onAssetAdded={handleAssetAdded} />
 
-      {/* Edit Asset Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit Asset</DialogTitle>
-            <DialogDescription>
-              Update the configuration for {selectedAsset?.name}
-            </DialogDescription>
+            <DialogDescription>Update the configuration for {selectedAsset?.name}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveEdit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="editName">Asset Name *</Label>
-              <Input
-                id="editName"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editIp">IP Address *</Label>
-              <Input
-                id="editIp"
-                value={editForm.ip}
-                onChange={(e) => setEditForm({ ...editForm, ip: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editUsername">Username *</Label>
-              <Input
-                id="editUsername"
-                value={editForm.username}
-                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editPassword">New Password (leave empty to keep current)</Label>
-              <Input
-                id="editPassword"
-                type="password"
-                placeholder="Enter new password"
-                value={editForm.password}
-                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editConfirmPassword">Confirm New Password</Label>
-              <Input
-                id="editConfirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                value={editForm.confirmPassword}
-                onChange={(e) => setEditForm({ ...editForm, confirmPassword: e.target.value })}
-              />
-            </div>
-
+            <div className="space-y-2"><Label>Asset Name *</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
+            <div className="space-y-2"><Label>IP Address *</Label><Input value={editForm.ip} onChange={(e) => setEditForm({ ...editForm, ip: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Username *</Label><Input value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} /></div>
+            <div className="space-y-2"><Label>New Password</Label><Input type="password" placeholder="Leave blank to keep current" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Confirm New Password</Label><Input type="password" value={editForm.confirmPassword} onChange={(e) => setEditForm({ ...editForm, confirmPassword: e.target.value })} /></div>
             <div className="space-y-2">
               <Label>Technology *</Label>
-              <Select value={editForm.technology} onValueChange={(value) => setEditForm({ ...editForm, technology: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {technologies.map(tech => (
-                    <SelectItem key={tech} value={tech}>
-                      {tech}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+<Select value={editForm.technology} onValueChange={(value) => setEditForm({ ...editForm, technology: value })}>
+  <SelectTrigger>
+    <SelectValue placeholder="Select technology" />
+  </SelectTrigger>
+  <SelectContent>
+    {technologies.map(tech => (
+      <SelectItem key={tech.id} value={tech.name}>
+        {tech.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 
+
+            </div>
             <div className="space-y-2">
               <Label>Group *</Label>
-              <Select value={editForm.group} onValueChange={(value) => setEditForm({ ...editForm, group: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map(group => (
-                    <SelectItem key={group} value={group}>
-                      {group}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+<Select value={editForm.group} onValueChange={(value) => setEditForm({ ...editForm, group: value })}>
+  <SelectTrigger>
+    <SelectValue placeholder="Select group" />
+  </SelectTrigger>
+  <SelectContent>
+    {groups.map(group => (
+      <SelectItem key={group.id} value={group.name}>
+        {group.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 
+
+            </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                <Settings className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+              <Button type="submit"><Settings className="h-4 w-4 mr-2" />Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>

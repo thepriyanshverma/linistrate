@@ -12,7 +12,7 @@ fernet_key = os.getenv("FERNET_KEY").encode()
 fernet = Fernet(fernet_key)
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 
 def encrypt_data(plain_text: str) -> str:
@@ -39,3 +39,5 @@ def verify_token(token: str):
         return payload
     except JWTError:
         return None
+    
+    
