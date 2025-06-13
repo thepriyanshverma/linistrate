@@ -107,7 +107,10 @@ def edit_asset(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error while saving asset update")
 
-    return existing_asset
+    return {
+            "success": True,
+            "message": f"Asset '{existing_asset.name}' edited successfully"
+        }
 
 
 
@@ -125,7 +128,10 @@ def delete_asset(asset_id: int, current_user: dict = Depends(get_current_user), 
     existing_asset.ip = existing_asset.ip + '_deleted'
     db.commit()
     db.refresh(existing_asset)
-    return {"detail": f"Asset '{existing_asset.name}' deleted successfully"}
+    return {
+            "success": True,
+            "message": f"Asset '{existing_asset.name}' deleted successfully"
+        }
 
 @router.get("/get-assets")
 def get_assets(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
