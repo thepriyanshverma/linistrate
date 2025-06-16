@@ -12,5 +12,5 @@ def get_groups(db: Session = Depends(get_db), current_user: dict = Depends(get_c
     existing_user = db.query(User).filter(User.user_id==current_user["user_id"])
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
-    groups = db.query(Group).all()
+    groups = db.query(Group).filter(Group.owner_id==current_user["user_id"]).all()
     return [{"name": group.name, "color": group.color} for group in groups]

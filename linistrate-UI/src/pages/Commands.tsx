@@ -12,13 +12,24 @@ import { CalendarIcon, Play, Clock, Terminal, ChevronRight, Upload, Plus, Folder
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+interface Group {
+  name: string;
+  color: string;
+}
+
+interface Technology {
+  technology_id: number;
+  name: string;
+}
+
 interface Asset {
-  id: string;
+  asset_id: number;
   name: string;
   ip: string;
-  group: string;
-  groupColor?: string;
+  username: string;
+  technology: number;
   status: 'online' | 'offline' | 'maintenance';
+  group_r?: Group;
 }
 
 interface Script {
@@ -47,7 +58,9 @@ const Commands = () => {
   const [scheduleRepeat, setScheduleRepeat] = useState('once');
   const [scheduleDays, setScheduleDays] = useState('1');
   const [isScheduling, setIsScheduling] = useState(false);
-  
+  const [technologies, setTechnologies] = useState<{ technology_id: string; name: string }[]>([]);
+
+
   // Custom script/category states
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -61,6 +74,26 @@ const Commands = () => {
   const [customScripts, setCustomScripts] = useState<ScriptCategory>({});
 
   const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+  const fetchTechnologies = async () => {
+    const token = localStorage.getItem('linistrate_token');
+    try {
+      const res = await fetch('http://localhost:8000/technology/v1/get-technologies', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      setTechnologies(data);
+    } catch (err) {
+      console.error("Failed to fetch technologies", err);
+    }
+  };
+
+  fetchTechnologies();
+}, []);
+
   useEffect(() => {
       const fetchAssets = async () => {
         const token = localStorage.getItem('linistrate_token');
@@ -84,6 +117,7 @@ const Commands = () => {
             id: item.asset_id.toString(),
             name: item.name,
             ip: item.ip,
+            technology: item.technology, // ✅ Add this line
             group: item.group_r?.name ?? 'N/A',
             groupColor: item.group_r?.color ?? '#6b7280',
             status: 'online',
@@ -100,12 +134,13 @@ const Commands = () => {
   
   const [scriptCategories, setScriptCategory] = useState<ScriptCategory[]>([]);
   
+const getAvailableTechnologies = () => {
+  if (!selectedAsset) return [];
+  const asset = assets.find(a => a.id === selectedAsset);
+  const techName = asset ? (technologies.find(t => t.technology_id === asset.technology)?.name || 'Unknown') : '';
+  return asset ? [asset.technology] : [];
+};
 
-  const getAvailableTechnologies = () => {
-    if (!selectedAsset) return [];
-    const asset = assets.find(a => a.id === selectedAsset);
-    return asset ? [asset.technology] : [];
-  };
 
   const getAvailableCategories = () => {
     if (!selectedTechnology || !scriptCategories[selectedTechnology]) return [];
@@ -445,7 +480,7 @@ const handleExecute = async () => {
                         />
                         <span>{asset.name}</span>
                         <span className="text-muted-foreground">({asset.ip})</span>
-                        <span className="text-xs text-muted-foreground">{asset.technology}</span>
+                        {/* <span className="text-xs text-muted-foreground">{asset.technology}</span> */}
                       </div>
                     </SelectItem>
                   ))}
@@ -454,29 +489,46 @@ const handleExecute = async () => {
             </div>
 
             {/* Technology Selection */}
+            
             {selectedAsset && (
-              <div className="space-y-2">
-                <Label>Asset Technology</Label>
-                <Select value={selectedTechnology} onValueChange={(value) => {
+            <div className="space-y-2">
+              <Label>Asset Technology</Label>
+
+              {/* Show the techName here */}
+              <div className="text-sm text-muted-foreground">
+                <strong>Detected:</strong>{' '}
+                {(() => {
+                  const asset = assets.find(a => a.id === selectedAsset);
+                  return asset
+                    ? technologies.find(t => t.technology_id === asset.technology)?.name || 'Unknown'
+                    : '';
+                })()}
+              </div>
+
+              {/* <Select
+                value={selectedTechnology}
+                onValueChange={(value) => {
                   setSelectedTechnology(value);
                   setSelectedCategory('');
                   setSelectedScript('');
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Technology auto-selected based on asset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableTechnologies().map(tech => (
-                      <SelectItem key={tech} value={tech}>
-                        <div className="flex items-center space-x-2">
-                          <span className="capitalize">{tech}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Technology auto-selected based on asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableTechnologies().map((techId) => (
+                    <SelectItem key={techId} value={techId}>
+                      {
+                        technologies.find(t => t.technology_id === techId)?.name || techId
+                      }
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select> */}
+            </div>
+          )}
+
 
             {/* Category Selection */}
             {selectedTechnology && (

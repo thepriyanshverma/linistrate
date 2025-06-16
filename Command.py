@@ -13,4 +13,4 @@ def execute_remote_command(hostname=None, port=22 , username=None , password=Non
         return {"output":output.strip() , "error":error.strip()}
     
     except Exception as e:
-        return {"error": str(e)}
+        return {"output": "", "error": str(e)}
